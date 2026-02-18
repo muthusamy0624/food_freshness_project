@@ -164,41 +164,38 @@ async def health_check():
 
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
-    """
-    Predict food freshness from uploaded image
-    
-    Args:
-        file: Image file (multipart/form-data)
-        
-    Returns:
-        JSON response with prediction, confidence, and probabilities
-    """
     try:
+        global model
+
+        # Lazy load model (only when needed)
+        if model is None:
+            load_model_on_startup()
+
         # Validate file
         if not file.content_type.startswith('image/'):
             raise HTTPException(
-                status_code=400, 
+                status_code=400,
                 detail="Invalid file type. Please upload an image."
             )
-        
+
         # Read image data
         img_data = await file.read()
-        
+
         # Preprocess image
         processed_image = preprocess_image(img_data)
-        
+
         # Perform prediction
         result = predict_with_confidence(processed_image)
-        
+
         # Add metadata
         result.update({
             "filename": file.filename,
             "content_type": file.content_type,
             "file_size": len(img_data)
         })
-        
+
         return JSONResponse(content=result)
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -206,6 +203,3 @@ async def predict(file: UploadFile = File(...)):
             status_code=500,
             detail=f"Unexpected error during prediction: {str(e)}"
         )
-
-# Load model on startup
-load_model_on_startup()
